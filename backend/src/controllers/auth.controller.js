@@ -1,9 +1,12 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js";
+import { sendWelcomeEmail } from "../emails/emailHandlers.js";
+import dotenv from "dotenv";
+dotenv.config();
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
-  
+
   try {
     // validation
     if (!fullName || !email || !password) {
@@ -35,7 +38,6 @@ export const signup = async (req, res) => {
     });
 
     if (newUser) {
-      
       const savedUser = await newUser.save(); // save it in the database
       generateToken(savedUser._id, res);
 
@@ -47,6 +49,17 @@ export const signup = async (req, res) => {
       });
 
       // to do :  send a welcome email to the user
+      try {
+        await sendWelcomeEmail(
+          savedUser.email,
+          savedUser.fullName,
+          process.env.CLIENT_URL
+        );
+      } catch (error) {
+        console.error("faild to send welcome email: ", error);
+      }
+
+      
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
@@ -55,3 +68,4 @@ export const signup = async (req, res) => {
     res.status(500).json({ message: "Enternal server error" });
   }
 };
+ 
