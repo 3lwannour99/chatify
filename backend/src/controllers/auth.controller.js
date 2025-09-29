@@ -2,8 +2,10 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js";
 import { sendWelcomeEmail } from "../emails/emailHandlers.js";
+import cloudinary from "../lib/cloudinary.js";
 import dotenv from "dotenv";
 dotenv.config();
+
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
@@ -69,10 +71,9 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  if(!email || !password){
-    return res.status(400).json({message:"Email and password are required"})
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required" });
   }
-
 
   try {
     const user = await User.findOne({ email });
@@ -92,14 +93,32 @@ export const login = async (req, res) => {
       profilePic: user.profilePic,
     });
   } catch (error) {
-
-    console.error("error in login controller", error)
-    res.status(500).json({message:"Internal Server Error"})
+    console.error("error in login controller", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-export const logout =  (_, res) => {
+export const logout = (_, res) => {
+  res.cookie("jwt", "", { maxAge: 0 }); // jwt same in the utils
+  res.status(200).json({ message: "Logged out succesffully" });
+};
 
-  res.cookie("jwt","",{maxAge:0}) // jwt same in the utils
-  res.status(200).json({message:"Logged out succesffully"})
+export const updateProfile = async (req, res) => {
+  try {
+    const { profilePic } = req.body;
+    if (!profilePic)
+      return res.status(400).json({ message: "Profile picture is required" });
+    const userId = req.user._id;
+
+    const uploudResponse = await cloudinary.uploader.upload(profilePic);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic: uploudResponse.secure_url },
+      { new: true }
+    );
+  } catch (error) {
+    console.log("Error in update profile: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
